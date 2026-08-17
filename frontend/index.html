@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>myFinance — Private Multi-Portfolio Investment Tracker</title>
+    <meta name="description" content="Local, privacy-first portfolio tracker with multimodal screenshot trade extraction, XIRR, CAGR, and Google Finance-style multi-portfolio management.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navbar -->
+        <header class="navbar">
+            <div class="nav-left">
+                <div class="brand-logo">
+                    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+                        <polyline points="16 7 22 7 22 13"></polyline>
+                    </svg>
+                    <span class="brand-name">myFinance</span>
+                </div>
+                <div class="privacy-badge" title="Running 100% locally with SQLite on your machine">
+                    <span class="dot-online"></span>
+                    <span>Local & Private</span>
+                </div>
+            </div>
+
+            <div class="nav-actions">
+                <button id="btn-screenshot" class="btn btn-primary" title="Drag and drop or paste trade confirmation screenshots">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <span>Import Screenshot</span>
+                </button>
+                
+                <button id="btn-add-tx" class="btn btn-secondary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>Add Trade</span>
+                </button>
+
+                <button id="btn-refresh" class="btn btn-icon-only" title="Refresh Live Market Prices">
+                    <svg id="refresh-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                        <path d="M23 4v6h-6"></path>
+                        <path d="M1 20v-6h6"></path>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                </button>
+
+                <button id="btn-theme-toggle" class="btn btn-icon-only" title="Toggle Light / Dark Mode">
+                    <svg id="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon hidden">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+
+                <button id="btn-settings" class="btn btn-icon-only" title="Settings & Vision API Key">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Google Finance Style Portfolio Tab Bar -->
+        <div class="portfolio-tab-bar-container">
+            <div class="portfolio-tabs" id="portfolio-tabs-list">
+                <!-- Dynamically injected -->
+                <button class="portfolio-tab active" data-portfolio-id="overview">
+                    <span class="tab-indicator" style="background: #3b82f6;"></span>
+                    <span class="tab-name">All Portfolios</span>
+                    <span class="tab-val" id="tab-val-overview">--</span>
+                </button>
+            </div>
+            <button id="btn-add-portfolio" class="btn-tab-add" title="Create New Portfolio">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>New Portfolio</span>
+            </button>
+        </div>
+
+        <!-- Main Dashboard View -->
+        <main class="main-content">
+            <!-- Executive Metrics Header -->
+            <section class="summary-hero-card">
+                <div class="hero-left">
+                    <div class="hero-label" id="current-portfolio-title">Aggregated Portfolio Value</div>
+                    <div class="hero-value-row">
+                        <div class="hero-main-value" id="stat-total-value">$0.00</div>
+                        <div class="badge-pill" id="stat-daily-pill">
+                            <span id="stat-daily-change">+$0.00 (0.00%)</span>
+                            <span class="pill-label">Today</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hero-metrics-grid">
+                    <!-- Total Return -->
+                    <div class="metric-box">
+                        <div class="metric-label">Total Gain / Loss</div>
+                        <div class="metric-value" id="stat-total-return">$0.00</div>
+                        <div class="metric-sub" id="stat-total-return-pct">0.00% all-time</div>
+                    </div>
+
+                    <!-- XIRR Card (Annualized Return) -->
+                    <div class="metric-box highlight-box" title="Extended Internal Rate of Return: Accurate annualized performance taking into account every purchase, sale, and dividend date.">
+                        <div class="metric-label flex-between">
+                            <span>XIRR</span>
+                            <span class="tooltip-badge">?</span>
+                        </div>
+                        <div class="metric-value font-mono highlight-text" id="stat-xirr">--%</div>
+                        <div class="metric-sub">Annualized Cash Flow Return</div>
+                    </div>
+
+                    <!-- CAGR Card -->
+                    <div class="metric-box highlight-box" title="Compound Annual Growth Rate: Geometric progression ratio of portfolio over holding period.">
+                        <div class="metric-label flex-between">
+                            <span>CAGR</span>
+                            <span class="tooltip-badge">?</span>
+                        </div>
+                        <div class="metric-value font-mono highlight-text" id="stat-cagr">--%</div>
+                        <div class="metric-sub">Compound Annual Growth</div>
+                    </div>
+
+                    <!-- Realized vs Unrealized -->
+                    <div class="metric-box">
+                        <div class="metric-label">Cost Basis / Invested</div>
+                        <div class="metric-value" id="stat-cost-basis">$0.00</div>
+                        <div class="metric-sub" id="stat-realized-sub">Realized: $0.00</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts & Allocation Grid -->
+            <section class="dashboard-grid">
+                <!-- Performance Chart Card -->
+                <div class="card chart-card">
+                    <div class="card-header flex-between">
+                        <div class="card-title-group">
+                            <h2 class="card-title">Portfolio Performance</h2>
+                            <span class="card-subtitle">Tracking vs <span id="benchmark-name">S&P 500 (^GSPC)</span></span>
+                        </div>
+                        <div class="chart-controls">
+                            <div class="timeframe-selector" id="timeframe-buttons">
+                                <button class="tf-btn" data-tf="1M">1M</button>
+                                <button class="tf-btn" data-tf="6M">6M</button>
+                                <button class="tf-btn active" data-tf="1Y">1Y</button>
+                                <button class="tf-btn" data-tf="ALL">ALL</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Asset Allocation Donut Card -->
+                <div class="card allocation-card">
+                    <div class="card-header">
+                        <h2 class="card-title">Asset Allocation</h2>
+                    </div>
+                    <div class="donut-wrapper">
+                        <canvas id="allocationChart"></canvas>
+                    </div>
+                    <div class="allocation-legend" id="allocation-legend-list">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Holdings & Transactions Navigation -->
+            <section class="card holdings-card">
+                <div class="card-header flex-between">
+                    <div class="tab-group-inline">
+                        <button class="subtab-btn active" id="tab-btn-holdings">Holdings (<span id="holdings-count-badge">0</span>)</button>
+                        <button class="subtab-btn" id="tab-btn-transactions">Transactions Ledger</button>
+                    </div>
+                    <div class="table-search-box">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="table-search-input" placeholder="Search ticker, company...">
+                    </div>
+                </div>
+
+                <!-- Holdings Table View -->
+                <div class="table-responsive" id="view-holdings-table">
+                    <table class="data-table" id="holdings-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="ticker">Asset</th>
+                                <th class="text-right sortable" data-sort="quantity">Quantity</th>
+                                <th class="text-right sortable" data-sort="avg_buy_price">Avg Buy Price</th>
+                                <th class="text-right sortable" data-sort="current_price">Current Price</th>
+                                <th class="text-right sortable" data-sort="daily_pnl">Day's Gain</th>
+                                <th class="text-right sortable" data-sort="total_pnl">Total Return</th>
+                                <th class="text-right sortable" data-sort="current_value">Market Value</th>
+                                <th class="text-right sortable" data-sort="weight_pct">Weight</th>
+                                <th class="text-right sortable" data-sort="xirr" title="Extended Internal Rate of Return for this holding">XIRR</th>
+                                <th class="text-right sortable" data-sort="cagr" title="Compound Annual Growth Rate">CAGR</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="holdings-tbody">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                    <div id="holdings-empty-state" class="empty-state hidden">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
+                            <path d="M3 3v18h18"></path>
+                            <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path>
+                        </svg>
+                        <div class="empty-title">No holdings in this portfolio yet</div>
+                        <div class="empty-desc">Drop a screenshot of your broker trade confirmation or click "Add Trade" to start tracking.</div>
+                        <div class="empty-cta-row">
+                            <button class="btn btn-primary" onclick="openScreenshotModal()">Upload Screenshot</button>
+                            <button class="btn btn-secondary" onclick="openAddTradeModal()">Add Trade Manually</button>
+                            <button class="btn btn-outline" id="btn-seed-sample" onclick="seedSampleData()">Seed Sample Data</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transactions Ledger Table View -->
+                <div class="table-responsive hidden" id="view-transactions-table">
+                    <table class="data-table" id="transactions-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Portfolio</th>
+                                <th>Ticker</th>
+                                <th>Type</th>
+                                <th class="text-right">Quantity</th>
+                                <th class="text-right">Price</th>
+                                <th class="text-right">Total Amount</th>
+                                <th class="text-right">Fees</th>
+                                <th>Notes</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-tbody">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- 1. AI Screenshot Ingestion Modal (Star Feature) -->
+    <div class="modal-overlay hidden" id="modal-screenshot">
+        <div class="modal-card modal-wide">
+            <div class="modal-header flex-between">
+                <div class="modal-title-group">
+                    <div class="modal-title flex-center gap-2">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-header-icon">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                        <span>AI Screenshot Transaction Extractor</span>
+                    </div>
+                    <div class="modal-subtitle">Upload or paste (Ctrl+V) trade confirmations from any broker (Zerodha, Groww, Robinhood, Schwab, etc.)</div>
+                </div>
+                <button class="modal-close-btn" onclick="closeModal('modal-screenshot')">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Dropzone Section -->
+                <div class="screenshot-dropzone" id="screenshot-dropzone">
+                    <input type="file" id="screenshot-file-input" accept="image/*" class="file-input-hidden">
+                    <div class="dropzone-content">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="dropzone-icon">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <div class="dropzone-text">
+                            <strong>Click to upload</strong> or drag & drop trade screenshot here
+                        </div>
+                        <div class="dropzone-sub">Supports PNG, JPG, WEBP. You can also paste directly with <code>Ctrl + V</code> / <code>Cmd + V</code>.</div>
+                    </div>
+                </div>
+
+                <!-- Processing Spinner -->
+                <div class="ai-processing-state hidden" id="screenshot-loading">
+                    <div class="ai-pulse-spinner"></div>
+                    <div class="ai-loading-title">Extracting Trades with Vision AI...</div>
+                    <div class="ai-loading-sub">Detecting broker, date, ticker symbols, quantities, and execution prices</div>
+                </div>
+
+                <!-- Extracted Review & Approval Container -->
+                <div class="screenshot-review-grid hidden" id="screenshot-review-section">
+                    <div class="review-preview-col">
+                        <div class="preview-header">Uploaded Screenshot</div>
+                        <div class="preview-img-container">
+                            <img id="screenshot-img-preview" src="" alt="Screenshot Preview">
+                        </div>
+                    </div>
+
+                    <div class="review-table-col">
+                        <div class="flex-between review-meta-bar">
+                            <div class="broker-tag" id="extracted-broker-badge">Broker: Detected</div>
+                            <div class="flex-center gap-2">
+                                <label for="select-target-portfolio" class="target-portfolio-label">Add to Portfolio:</label>
+                                <select id="select-target-portfolio" class="form-select select-sm">
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="review-table-container">
+                            <table class="data-table review-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Ticker</th>
+                                        <th>Type</th>
+                                        <th>Qty</th>
+                                        <th>Price</th>
+                                        <th>Fees</th>
+                                        <th>Curr</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="review-tbody">
+                                    <!-- Editable extracted rows -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="review-actions-row flex-between">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="addBlankReviewRow()">+ Add Row</button>
+                            <div class="flex-center gap-2">
+                                <button type="button" class="btn btn-outline" onclick="resetScreenshotUpload()">Re-upload</button>
+                                <button type="button" class="btn btn-primary" id="btn-confirm-import" onclick="confirmImportTrades()">Import Verified Trades</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Manual Add / Edit Trade Modal -->
+    <div class="modal-overlay hidden" id="modal-trade">
+        <div class="modal-card">
+            <div class="modal-header flex-between">
+                <div class="modal-title" id="modal-trade-title">Add Transaction</div>
+                <button class="modal-close-btn" onclick="closeModal('modal-trade')">&times;</button>
+            </div>
+            <form id="form-trade" onsubmit="handleSaveTrade(event)">
+                <input type="hidden" id="trade-edit-id">
+                <div class="modal-body form-grid">
+                    <div class="form-group">
+                        <label for="trade-portfolio">Portfolio</label>
+                        <select id="trade-portfolio" class="form-select" required></select>
+                    </div>
+
+                    <div class="form-group autocomplete-container">
+                        <label for="trade-ticker">Ticker / Symbol</label>
+                        <input type="text" id="trade-ticker" class="form-input" placeholder="e.g. AAPL, RELIANCE.NS, VOO, BTC-USD" autocomplete="off" required>
+                        <div class="autocomplete-dropdown hidden" id="ticker-suggestions"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="trade-type">Transaction Type</label>
+                        <select id="trade-type" class="form-select" required>
+                            <option value="BUY">BUY</option>
+                            <option value="SELL">SELL</option>
+                            <option value="DIVIDEND">DIVIDEND</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="trade-date">Date</label>
+                        <input type="date" id="trade-date" class="form-input" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="trade-quantity">Quantity / Shares</label>
+                        <input type="number" id="trade-quantity" class="form-input font-mono" step="any" min="0.000001" placeholder="10" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="trade-price">Price per Unit</label>
+                        <input type="number" id="trade-price" class="form-input font-mono" step="any" min="0" placeholder="150.00" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="trade-fees">Fees / Taxes</label>
+                        <input type="number" id="trade-fees" class="form-input font-mono" step="any" min="0" placeholder="0.00" value="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="trade-currency">Currency</label>
+                        <select id="trade-currency" class="form-select">
+                            <option value="USD">USD ($)</option>
+                            <option value="INR">INR (₹)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="CAD">CAD ($)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group form-col-full">
+                        <label for="trade-notes">Notes / Broker Order ID (Optional)</label>
+                        <input type="text" id="trade-notes" class="form-input" placeholder="e.g. Zerodha Order #12345, Rebalance">
+                    </div>
+                </div>
+
+                <div class="modal-footer flex-between">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('modal-trade')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-trade">Save Transaction</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. Create / Edit Portfolio Modal -->
+    <div class="modal-overlay hidden" id="modal-portfolio">
+        <div class="modal-card">
+            <div class="modal-header flex-between">
+                <div class="modal-title" id="modal-portfolio-title">Create Portfolio</div>
+                <button class="modal-close-btn" onclick="closeModal('modal-portfolio')">&times;</button>
+            </div>
+            <form id="form-portfolio" onsubmit="handleSavePortfolio(event)">
+                <input type="hidden" id="portfolio-edit-id">
+                <div class="modal-body form-grid">
+                    <div class="form-group form-col-full">
+                        <label for="p-name">Portfolio Name</label>
+                        <input type="text" id="p-name" class="form-input" placeholder="e.g. Dividend Growth, Speculative Tech" required>
+                    </div>
+
+                    <div class="form-group form-col-full">
+                        <label for="p-desc">Description</label>
+                        <input type="text" id="p-desc" class="form-input" placeholder="e.g. Long-term blue chip compounders">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="p-currency">Base Currency</label>
+                        <select id="p-currency" class="form-select">
+                            <option value="USD">USD ($)</option>
+                            <option value="INR">INR (₹)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="CAD">CAD ($)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="p-benchmark">Benchmark Index</label>
+                        <select id="p-benchmark" class="form-select">
+                            <option value="^GSPC">S&P 500 (^GSPC)</option>
+                            <option value="^NSEI">NIFTY 50 (^NSEI)</option>
+                            <option value="^IXIC">NASDAQ Composite (^IXIC)</option>
+                            <option value="^DJI">Dow Jones Industrial (^DJI)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group form-col-full">
+                        <label for="p-color">Color Tag</label>
+                        <div class="color-picker-row">
+                            <input type="color" id="p-color" value="#10b981" class="color-picker-input">
+                            <span class="color-hex-label" id="color-hex-text">#10b981</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer flex-between">
+                    <button type="button" class="btn btn-danger hidden" id="btn-delete-portfolio" onclick="handleDeleteCurrentPortfolio()">Delete Portfolio</button>
+                    <div class="flex-center gap-2" style="margin-left: auto;">
+                        <button type="button" class="btn btn-outline" onclick="closeModal('modal-portfolio')">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Portfolio</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. Settings Modal -->
+    <div class="modal-overlay hidden" id="modal-settings">
+        <div class="modal-card">
+            <div class="modal-header flex-between">
+                <div class="modal-title">Settings & API Keys</div>
+                <button class="modal-close-btn" onclick="closeModal('modal-settings')">&times;</button>
+            </div>
+            <form id="form-settings" onsubmit="handleSaveSettings(event)">
+                <div class="modal-body form-grid">
+                    <div class="form-group form-col-full">
+                        <div class="flex-between">
+                            <label for="set-gemini-key">Google Gemini API Key (For Screenshot OCR)</label>
+                            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="external-link">Get Free Key &rarr;</a>
+                        </div>
+                        <input type="password" id="set-gemini-key" class="form-input font-mono" placeholder="Paste your AI Studio Gemini API Key">
+                        <div class="form-help">Enables 100% automated multimodal trade extraction from your broker screenshots. Stored strictly in local SQLite.</div>
+                    </div>
+
+                    <div class="form-group form-col-full">
+                        <label for="set-openai-key">OpenAI API Key (Optional Alternative)</label>
+                        <input type="password" id="set-openai-key" class="form-input font-mono" placeholder="sk-...">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="set-currency">Global Base Currency</label>
+                        <select id="set-currency" class="form-select">
+                            <option value="USD">USD ($)</option>
+                            <option value="INR">INR (₹)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="GBP">GBP (£)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="set-benchmark">Default Benchmark</label>
+                        <select id="set-benchmark" class="form-select">
+                            <option value="^GSPC">S&P 500 (^GSPC)</option>
+                            <option value="^NSEI">NIFTY 50 (^NSEI)</option>
+                            <option value="^IXIC">NASDAQ (^IXIC)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group form-col-full test-seed-section">
+                        <label>Demo & Testing</label>
+                        <div class="flex-between">
+                            <span class="text-muted text-sm">Populate sample multi-year portfolio data to test XIRR & CAGR math immediately:</span>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="seedSampleData()">Seed Sample Data</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer flex-between">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('modal-settings')">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/static/charts.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
