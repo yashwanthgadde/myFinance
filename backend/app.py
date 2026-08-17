@@ -11,6 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field
 
+from contextlib import asynccontextmanager
+
 from .database import (
     init_db, get_all_portfolios, get_portfolio_by_id, create_portfolio,
     update_portfolio, delete_portfolio, get_transactions, create_transaction,
@@ -23,9 +25,13 @@ from .market_data import (
 )
 from .vision_parser import extract_transactions_from_image
 
-app = FastAPI(title="myFinance Portfolio Tracker API", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
 
-# Enable CORS for local development
+app = FastAPI(title="myFinance Portfolio Tracker API", version="2.0.0", lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,12 +40,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Database on Startup
-@app.on_event("startup")
-def startup_event():
-    init_db()
-
 # ----------------- Request Models ----------------- #
+
 
 class PortfolioCreate(BaseModel):
     name: str

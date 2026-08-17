@@ -193,20 +193,25 @@ def search_symbols(query: str) -> List[Dict[str, Any]]:
         if q_lower in item["symbol"].lower() or q_lower in item["name"].lower():
             results.append(item)
 
-    # Also attempt yfinance search if available
+    # If the query looks like an exact ticker, try to validate it via yfinance
     try:
-        search = yf.Search(query, max_results=8)
-        quotes = search.quotes
-        if quotes:
-            for q in quotes:
-                sym = q.get("symbol")
-                if sym and not any(r["symbol"] == sym for r in results):
-                    results.append({
-                        "symbol": sym,
-                        "name": q.get("shortname") or q.get("longname") or sym,
-                        "exchange": q.get("exchange", ""),
-                        "type": q.get("quoteType", "EQUITY")
-                    })
+        if len(query) <= 12 and not any(r["symbol"].lower() == query.lower() for r in results):
+            candidate = query.upper()
+            t = yf.Ticker(candidate)
+            info = t.fast_info
+            p = getattr(info, "last_price", None)
+            if p and float(p) > 0:
+                # Valid ticker — add it if not already in list
+                try:
+                    name = t.info.get("shortName") or t.info.get("longName") or candidate
+                except Exception:
+                    name = candidate
+                results.insert(0, {
+                    "symbol": candidate,
+                    "name": name,
+                    "exchange": getattr(info, "exchange", ""),
+                    "type": "EQUITY"
+                })
     except Exception:
         pass
 
