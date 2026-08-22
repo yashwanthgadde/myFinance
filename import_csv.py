@@ -84,14 +84,31 @@ def import_csv(filepath: str):
                 continue
 
             try:
-                ticker   = row.get("Ticker", "").strip().upper()
-                company  = row.get("Company", "").strip() or ticker
-                tx_type  = row.get("Type", "BUY").strip().upper()
-                quantity = float(row.get("Quantity", 0) or 0)
-                price    = float(row.get("Price", 0) or 0)
-                fees     = float(row.get("Fees", 0) or 0)
-                currency = row.get("Currency", "INR").strip().upper() or "INR"
-                notes    = row.get("Notes", "").strip()
+                # Support both old and new column names
+                ticker     = (row.get("Ticker") or row.get("Symbol") or "").strip().upper()
+                company    = (row.get("Stock Name") or row.get("Company") or ticker or "").strip()
+                tx_type    = (row.get("Type") or "BUY").strip().upper()
+                quantity   = float(row.get("Quantity") or row.get("Qty") or 0)
+                buy_price  = float(row.get("Buy Price") or row.get("Price") or 0)
+                sell_price = float(row.get("Sell Price") or 0)
+                fees       = float(row.get("Fees") or row.get("Charges") or 0)
+                currency   = (row.get("Currency") or "INR").strip().upper() or "INR"
+                broker     = (row.get("Broker") or "").strip()
+                notes_raw  = (row.get("Notes") or "").strip()
+                notes      = " | ".join(filter(None, [broker, notes_raw]))
+
+                # Determine price and type from Buy Price / Sell Price columns
+                if sell_price > 0 and buy_price <= 0:
+                    tx_type = "SELL"
+                    price   = sell_price
+                elif tx_type == "SELL" and sell_price > 0:
+                    price = sell_price
+                else:
+                    price = buy_price
+
+                # Derive ticker from Stock Name if missing
+                if not ticker and company:
+                    ticker = company.upper().replace(" ", "")[:12]
 
                 # Validate
                 if not ticker:
