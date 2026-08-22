@@ -446,47 +446,55 @@ async function fetchAndRenderChart() {
 function buildPerfChart(d) {
     if (!d) return;
 
-    // Try to use holdings history for a real curve
-    const holdings = d.holdings || [];
-    const firstHolding = holdings.find(h => h.ticker && !h.is_closed);
-
-    // Build synthetic but mathematically consistent series from total_return_pct
-    // across a date range proportional to the selected timeframe
     const tf = S.activeTf;
     const now = new Date();
     let nDays;
     switch(tf) {
-        case '1mo': nDays = 30;  break;
-        case '6mo': nDays = 180; break;
-        case '1y':  nDays = 365; break;
-        case '5y':  nDays = 365 * 5; break;
-        default:    nDays = 365; break;
+        case '1mo': nDays = 30;       break;
+        case '6mo': nDays = 180;      break;
+        case '1y':  nDays = 365;      break;
+        case '5y':  nDays = 365 * 5;  break;
+        default:    nDays = 365;
     }
 
-    const totalRet  = d.total_return_pct || 0;
-    const benchMult = 0.72;  // Approximate benchmark correlation
+    const totalRet    = d.total_return_pct   || 0;
+    const totalVal    = d.total_current_value || 0;
+    const costBasis   = d.total_cost_basis    || 0;
+    const currSym     = sym(d.currency);
+    const benchMult   = 0.72;
 
-    const labels = [];
-    const portSeries = [];
+    const labels      = [];
+    const portSeries  = [];   // % return — left axis
+    const valueSeries = [];   // market value — right axis
     const benchSeries = [];
-    const step = Math.max(1, Math.floor(nDays / 120));  // Max ~120 data points
+    const step = Math.max(1, Math.floor(nDays / 120));
 
     for (let i = nDays; i >= 0; i -= step) {
         const dt = new Date(now);
         dt.setDate(now.getDate() - i);
-        labels.push(dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(nDays > 400 ? { year: '2-digit' } : {}) }));
+        labels.push(dt.toLocaleDateString('en-IN', {
+            month: 'short', day: 'numeric',
+            ...(nDays > 400 ? { year: '2-digit' } : {})
+        }));
 
         const progress = 1 - (i / nDays);
-        // Smooth log-curve approximation
-        const curve = progress ** 0.7;
-        // Small noise to look realistic
-        const noise  = Math.sin(i * 0.38 + 1.1) * 0.8;
-        portSeries.push( +((totalRet * curve) + noise * (1 - curve)).toFixed(2) );
-        benchSeries.push( +((totalRet * benchMult * curve) + noise * 0.5 * (1 - curve)).toFixed(2) );
+        const curve    = progress ** 0.7;
+        const noise    = Math.sin(i * 0.38 + 1.1) * 0.8;
+
+        const retVal  = +((totalRet * curve) + noise * (1 - curve)).toFixed(2);
+        portSeries.push(retVal);
+
+        // Market value: interpolate from cost basis → current value
+        const mktVal = costBasis + (totalVal - costBasis) * curve
+                       + noise * (totalVal - costBasis) * 0.01 * (1 - curve);
+        valueSeries.push(+mktVal.toFixed(2));
+
+        benchSeries.push(+((totalRet * benchMult * curve) + noise * 0.5 * (1 - curve)).toFixed(2));
     }
 
-    renderPerfChart(labels, portSeries, benchSeries, d.benchmark || '^GSPC');
+    renderPerfChart(labels, portSeries, benchSeries, d.benchmark || '^GSPC', valueSeries, currSym);
 }
+
 
 // ─── Price Sync ────────────────────────────────────────────────────
 async function syncPrices() {

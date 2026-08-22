@@ -1,6 +1,7 @@
 /**
  * myFinance Charts — Chart.js wrappers
- * Handles performance line chart and allocation donut.
+ * Performance chart: % return (left axis) + Market Value in currency (right axis)
+ * Allocation: donut chart
  */
 
 let perfChart = null;
@@ -12,30 +13,50 @@ function theme() {
     const dark = document.documentElement.getAttribute('data-theme') !== 'light';
     return {
         dark,
-        text:      dark ? '#8b9bbf' : '#445070',
-        grid:      dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)',
-        tooltip:   { bg: dark ? '#1a2540' : '#ffffff', title: dark ? '#f0f4ff' : '#0d1526', body: dark ? '#8b9bbf' : '#445070', border: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }
+        text:    dark ? '#8b9bbf' : '#445070',
+        grid:    dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)',
+        tooltip: {
+            bg:     dark ? '#1a2540' : '#ffffff',
+            title:  dark ? '#f0f4ff' : '#0d1526',
+            body:   dark ? '#8b9bbf' : '#445070',
+            border: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+        }
     };
 }
 
-/** Renders or refreshes the main performance chart */
-function renderPerfChart(labels, portfolioSeries, benchSeries, benchLabel) {
+/**
+ * Renders the performance chart.
+ * @param {string[]} labels
+ * @param {number[]} portfolioSeries  — % return series (left axis)
+ * @param {number[]} benchSeries      — benchmark % series (left axis)
+ * @param {string}   benchLabel
+ * @param {number[]} valueSeries      — absolute market value (right axis)
+ * @param {string}   currencySymbol   — e.g. '₹' or '$'
+ */
+function renderPerfChart(labels, portfolioSeries, benchSeries, benchLabel, valueSeries, currencySymbol) {
     const canvas = document.getElementById('perf-chart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const t = theme();
+    const t   = theme();
+    const cs  = currencySymbol || '₹';
 
     if (perfChart) { perfChart.destroy(); perfChart = null; }
 
-    // Gradient fill under portfolio line
+    // Gradient fill under the % return line
     const grad = ctx.createLinearGradient(0, 0, 0, 260);
-    grad.addColorStop(0, t.dark ? 'rgba(0,214,143,0.22)' : 'rgba(0,163,114,0.12)');
+    grad.addColorStop(0, t.dark ? 'rgba(0,214,143,0.20)' : 'rgba(0,163,114,0.10)');
     grad.addColorStop(1, 'rgba(0,0,0,0)');
 
+    // Gradient fill under the market value area
+    const valGrad = ctx.createLinearGradient(0, 0, 0, 260);
+    valGrad.addColorStop(0, t.dark ? 'rgba(76,141,255,0.15)' : 'rgba(37,99,235,0.08)');
+    valGrad.addColorStop(1, 'rgba(0,0,0,0)');
+
     const datasets = [
+        // 1. Portfolio % return — left Y axis
         {
-            label: 'Portfolio (%)',
-            data: portfolioSeries,
+            label: 'Return (%)',
+            data:  portfolioSeries,
             borderColor: t.dark ? '#00d68f' : '#00a372',
             backgroundColor: grad,
             borderWidth: 2.2,
@@ -44,20 +65,37 @@ function renderPerfChart(labels, portfolioSeries, benchSeries, benchLabel) {
             pointRadius: labels.length > 60 ? 0 : 3,
             pointHoverRadius: 5,
             pointBackgroundColor: t.dark ? '#00d68f' : '#00a372',
+            yAxisID: 'yPct',
+        },
+        // 2. Market Value — right Y axis
+        {
+            label: `Market Value (${cs})`,
+            data:  valueSeries,
+            borderColor: t.dark ? '#4c8dff' : '#2563eb',
+            backgroundColor: valGrad,
+            borderWidth: 2,
+            fill: true,
+            tension: 0.38,
+            pointRadius: labels.length > 60 ? 0 : 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: t.dark ? '#4c8dff' : '#2563eb',
+            yAxisID: 'yVal',
         }
     ];
 
+    // 3. Benchmark % — left Y axis (dashed)
     if (benchSeries && benchSeries.length > 0) {
         datasets.push({
             label: (benchLabel || 'Benchmark') + ' (%)',
-            data: benchSeries,
+            data:  benchSeries,
             borderColor: t.dark ? '#4d5e80' : '#94a3b8',
-            borderWidth: 1.6,
+            borderWidth: 1.5,
             borderDash: [5, 4],
             fill: false,
             tension: 0.35,
             pointRadius: 0,
             pointHoverRadius: 4,
+            yAxisID: 'yPct',
         });
     }
 
@@ -73,18 +111,29 @@ function renderPerfChart(labels, portfolioSeries, benchSeries, benchLabel) {
                     display: true,
                     position: 'top',
                     align: 'end',
-                    labels: { color: t.text, font: { family: 'Inter', size: 11, weight: '500' }, boxWidth: 12, usePointStyle: true }
+                    labels: {
+                        color: t.text,
+                        font: { family: 'Inter', size: 11, weight: '500' },
+                        boxWidth: 12,
+                        usePointStyle: true,
+                        padding: 16,
+                    }
                 },
                 tooltip: {
                     backgroundColor: t.tooltip.bg,
                     titleColor: t.tooltip.title,
-                    bodyColor: t.tooltip.body,
+                    bodyColor:  t.tooltip.body,
                     borderColor: t.tooltip.border,
                     borderWidth: 1,
-                    padding: 10,
+                    padding: 12,
                     callbacks: {
                         label: ctx => {
                             const v = ctx.parsed.y;
+                            if (ctx.dataset.yAxisID === 'yVal') {
+                                // Market value — format as currency
+                                return ` ${ctx.dataset.label}: ${cs}${v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                            }
+                            // % return
                             const sign = v >= 0 ? '+' : '';
                             return ` ${ctx.dataset.label}: ${sign}${v.toFixed(2)}%`;
                         }
@@ -94,14 +143,35 @@ function renderPerfChart(labels, portfolioSeries, benchSeries, benchLabel) {
             scales: {
                 x: {
                     grid: { color: t.grid },
-                    ticks: { color: t.text, font: { family: 'Inter', size: 10 }, maxTicksLimit: 9 }
-                },
-                y: {
-                    grid: { color: t.grid },
                     ticks: {
                         color: t.text,
+                        font: { family: 'Inter', size: 10 },
+                        maxTicksLimit: 9
+                    }
+                },
+                // Left axis — % return
+                yPct: {
+                    position: 'left',
+                    grid: { color: t.grid },
+                    ticks: {
+                        color: t.dark ? '#00d68f' : '#00a372',
                         font: { family: 'JetBrains Mono', size: 10 },
                         callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%'
+                    }
+                },
+                // Right axis — market value
+                yVal: {
+                    position: 'right',
+                    grid: { drawOnChartArea: false },   // no extra grid lines for right axis
+                    ticks: {
+                        color: t.dark ? '#4c8dff' : '#2563eb',
+                        font: { family: 'JetBrains Mono', size: 10 },
+                        callback: v => {
+                            // Compact format: ₹1.2L, ₹2.5K etc.
+                            if (v >= 100000)  return cs + (v / 100000).toFixed(1) + 'L';
+                            if (v >= 1000)    return cs + (v / 1000).toFixed(1) + 'K';
+                            return cs + v.toFixed(0);
+                        }
                     }
                 }
             }
@@ -145,7 +215,7 @@ function renderAllocChart(items) {
                 tooltip: {
                     backgroundColor: t.tooltip.bg,
                     titleColor: t.tooltip.title,
-                    bodyColor: t.tooltip.body,
+                    bodyColor:  t.tooltip.body,
                     callbacks: {
                         label: ctx => {
                             const item = items[ctx.dataIndex];
