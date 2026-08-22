@@ -25,15 +25,12 @@ function theme() {
 }
 
 /**
- * Renders the performance chart.
+ * Renders the performance chart — shows portfolio market value in currency.
  * @param {string[]} labels
- * @param {number[]} portfolioSeries  — % return series (left axis)
- * @param {number[]} benchSeries      — benchmark % series (left axis)
- * @param {string}   benchLabel
- * @param {number[]} valueSeries      — absolute market value (right axis)
- * @param {string}   currencySymbol   — e.g. '₹' or '$'
+ * @param {number[]} valueSeries  — absolute market value (₹ / $ / €)
+ * @param {string}   currencySymbol
  */
-function renderPerfChart(labels, portfolioSeries, benchSeries, benchLabel, valueSeries, currencySymbol) {
+function renderPerfChart(labels, valueSeries, currencySymbol) {
     const canvas = document.getElementById('perf-chart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -42,66 +39,30 @@ function renderPerfChart(labels, portfolioSeries, benchSeries, benchLabel, value
 
     if (perfChart) { perfChart.destroy(); perfChart = null; }
 
-    // Gradient fill under the % return line
+    // Blue gradient fill under the value curve
     const grad = ctx.createLinearGradient(0, 0, 0, 260);
-    grad.addColorStop(0, t.dark ? 'rgba(0,214,143,0.20)' : 'rgba(0,163,114,0.10)');
+    grad.addColorStop(0, t.dark ? 'rgba(76,141,255,0.28)' : 'rgba(37,99,235,0.14)');
     grad.addColorStop(1, 'rgba(0,0,0,0)');
-
-    // Gradient fill under the market value area
-    const valGrad = ctx.createLinearGradient(0, 0, 0, 260);
-    valGrad.addColorStop(0, t.dark ? 'rgba(76,141,255,0.15)' : 'rgba(37,99,235,0.08)');
-    valGrad.addColorStop(1, 'rgba(0,0,0,0)');
-
-    const datasets = [
-        // 1. Portfolio % return — left Y axis
-        {
-            label: 'Return (%)',
-            data:  portfolioSeries,
-            borderColor: t.dark ? '#00d68f' : '#00a372',
-            backgroundColor: grad,
-            borderWidth: 2.2,
-            fill: true,
-            tension: 0.38,
-            pointRadius: labels.length > 60 ? 0 : 3,
-            pointHoverRadius: 5,
-            pointBackgroundColor: t.dark ? '#00d68f' : '#00a372',
-            yAxisID: 'yPct',
-        },
-        // 2. Market Value — right Y axis
-        {
-            label: `Market Value (${cs})`,
-            data:  valueSeries,
-            borderColor: t.dark ? '#4c8dff' : '#2563eb',
-            backgroundColor: valGrad,
-            borderWidth: 2,
-            fill: true,
-            tension: 0.38,
-            pointRadius: labels.length > 60 ? 0 : 3,
-            pointHoverRadius: 5,
-            pointBackgroundColor: t.dark ? '#4c8dff' : '#2563eb',
-            yAxisID: 'yVal',
-        }
-    ];
-
-    // 3. Benchmark % — left Y axis (dashed)
-    if (benchSeries && benchSeries.length > 0) {
-        datasets.push({
-            label: (benchLabel || 'Benchmark') + ' (%)',
-            data:  benchSeries,
-            borderColor: t.dark ? '#4d5e80' : '#94a3b8',
-            borderWidth: 1.5,
-            borderDash: [5, 4],
-            fill: false,
-            tension: 0.35,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            yAxisID: 'yPct',
-        });
-    }
 
     perfChart = new Chart(canvas, {
         type: 'line',
-        data: { labels, datasets },
+        data: {
+            labels,
+            datasets: [{
+                label: `Portfolio Value (${cs})`,
+                data:  valueSeries,
+                borderColor:       t.dark ? '#4c8dff' : '#2563eb',
+                backgroundColor:   grad,
+                borderWidth: 2.5,
+                fill: true,
+                tension: 0.4,
+                pointRadius: labels.length > 60 ? 0 : 3,
+                pointHoverRadius: 6,
+                pointBackgroundColor: t.dark ? '#4c8dff' : '#2563eb',
+                pointBorderColor: t.dark ? '#0f1623' : '#fff',
+                pointBorderWidth: 2,
+            }]
+        },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -113,29 +74,22 @@ function renderPerfChart(labels, portfolioSeries, benchSeries, benchLabel, value
                     align: 'end',
                     labels: {
                         color: t.text,
-                        font: { family: 'Inter', size: 11, weight: '500' },
+                        font: { family: 'Inter', size: 11, weight: '600' },
                         boxWidth: 12,
                         usePointStyle: true,
-                        padding: 16,
                     }
                 },
                 tooltip: {
                     backgroundColor: t.tooltip.bg,
-                    titleColor: t.tooltip.title,
-                    bodyColor:  t.tooltip.body,
-                    borderColor: t.tooltip.border,
+                    titleColor:      t.tooltip.title,
+                    bodyColor:       t.tooltip.body,
+                    borderColor:     t.tooltip.border,
                     borderWidth: 1,
                     padding: 12,
                     callbacks: {
                         label: ctx => {
                             const v = ctx.parsed.y;
-                            if (ctx.dataset.yAxisID === 'yVal') {
-                                // Market value — format as currency
-                                return ` ${ctx.dataset.label}: ${cs}${v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                            }
-                            // % return
-                            const sign = v >= 0 ? '+' : '';
-                            return ` ${ctx.dataset.label}: ${sign}${v.toFixed(2)}%`;
+                            return ` ${cs}${v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                         }
                     }
                 }
@@ -149,27 +103,16 @@ function renderPerfChart(labels, portfolioSeries, benchSeries, benchLabel, value
                         maxTicksLimit: 9
                     }
                 },
-                // Left axis — % return
-                yPct: {
+                y: {
                     position: 'left',
                     grid: { color: t.grid },
-                    ticks: {
-                        color: t.dark ? '#00d68f' : '#00a372',
-                        font: { family: 'JetBrains Mono', size: 10 },
-                        callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%'
-                    }
-                },
-                // Right axis — market value
-                yVal: {
-                    position: 'right',
-                    grid: { drawOnChartArea: false },   // no extra grid lines for right axis
                     ticks: {
                         color: t.dark ? '#4c8dff' : '#2563eb',
                         font: { family: 'JetBrains Mono', size: 10 },
                         callback: v => {
-                            // Compact format: ₹1.2L, ₹2.5K etc.
-                            if (v >= 100000)  return cs + (v / 100000).toFixed(1) + 'L';
-                            if (v >= 1000)    return cs + (v / 1000).toFixed(1) + 'K';
+                            if (v >= 10000000) return cs + (v / 10000000).toFixed(1) + 'Cr';
+                            if (v >= 100000)   return cs + (v / 100000).toFixed(1) + 'L';
+                            if (v >= 1000)     return cs + (v / 1000).toFixed(1) + 'K';
                             return cs + v.toFixed(0);
                         }
                     }
@@ -178,6 +121,7 @@ function renderPerfChart(labels, portfolioSeries, benchSeries, benchLabel, value
         }
     });
 }
+
 
 /** Renders or refreshes allocation donut */
 function renderAllocChart(items) {

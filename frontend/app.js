@@ -492,7 +492,7 @@ function buildPerfChart(d) {
         benchSeries.push(+((totalRet * benchMult * curve) + noise * 0.5 * (1 - curve)).toFixed(2));
     }
 
-    renderPerfChart(labels, portSeries, benchSeries, d.benchmark || '^GSPC', valueSeries, currSym);
+    renderPerfChart(labels, valueSeries, currSym);
 }
 
 
