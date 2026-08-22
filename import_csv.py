@@ -84,20 +84,14 @@ def import_csv(filepath: str):
                 continue
 
             try:
-                # Support both old and new column names
-                ticker     = (row.get("Ticker") or row.get("Symbol") or "").strip().upper()
-                company    = (row.get("Stock Name") or row.get("Company") or ticker or "").strip()
+                ticker     = (row.get("Ticker") or "").strip().upper()
+                company    = (row.get("Stock Name") or ticker or "").strip()
                 tx_type    = (row.get("Type") or "BUY").strip().upper()
-                quantity   = float(row.get("Quantity") or row.get("Qty") or 0)
-                buy_price  = float(row.get("Buy Price") or row.get("Price") or 0)
+                quantity   = float(row.get("Quantity") or 0)
+                buy_price  = float(row.get("Buy Price") or 0)
                 sell_price = float(row.get("Sell Price") or 0)
-                fees       = float(row.get("Fees") or row.get("Charges") or 0)
-                currency   = (row.get("Currency") or "INR").strip().upper() or "INR"
-                broker     = (row.get("Broker") or "").strip()
-                notes_raw  = (row.get("Notes") or "").strip()
-                notes      = " | ".join(filter(None, [broker, notes_raw]))
 
-                # Determine price and type from Buy Price / Sell Price columns
+                # Determine price and transaction type
                 if sell_price > 0 and buy_price <= 0:
                     tx_type = "SELL"
                     price   = sell_price
@@ -106,7 +100,11 @@ def import_csv(filepath: str):
                 else:
                     price = buy_price
 
-                # Derive ticker from Stock Name if missing
+                fees     = 0.0
+                currency = "INR"
+                notes    = f"Imported from {filename}"
+
+                # Derive ticker from Stock Name if blank
                 if not ticker and company:
                     ticker = company.upper().replace(" ", "")[:12]
 
