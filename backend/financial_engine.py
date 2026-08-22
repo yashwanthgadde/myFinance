@@ -115,9 +115,10 @@ def calculate_cagr(start_val: float, end_val: float, years: float) -> Optional[f
         pass
     return None
 
-def calculate_holding_metrics(transactions: List[Dict[str, Any]], current_price: float, 
+def calculate_holding_metrics(transactions: List[Dict[str, Any]], current_price: float,
                               price_change_24h: float = 0.0, price_change_24h_pct: float = 0.0,
-                              as_of_date: Optional[date] = None) -> Dict[str, Any]:
+                              as_of_date: Optional[date] = None,
+                              portfolio: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Calculates detailed metrics for a single security/holding using FIFO lot matching.
     """
@@ -226,7 +227,7 @@ def calculate_holding_metrics(transactions: List[Dict[str, Any]], current_price:
         "ticker": transactions[0]["ticker"].upper(),
         "asset_name": transactions[0].get("asset_name") or transactions[0]["ticker"],
         "asset_type": transactions[0].get("asset_type", "EQUITY"),
-        "currency": transactions[0].get("currency", "USD"),
+        "currency": portfolio.get("currency", "INR") if portfolio else transactions[0].get("currency", "INR"),
         "quantity": round(current_qty, 6),
         "avg_buy_price": round(avg_buy_price, 4),
         "current_price": round(current_price, 4),
@@ -291,7 +292,11 @@ def calculate_portfolio_summary(portfolios: List[Dict[str, Any]],
         change_24h = float(cached.get("change_24h", 0.0))
         change_24h_pct = float(cached.get("change_24h_pct", 0.0))
 
-        m = calculate_holding_metrics(txs, current_price, change_24h, change_24h_pct, as_of_date=today)
+        # Find portfolio this ticker belongs to
+        tx_portfolio_id = txs[0].get("portfolio_id")
+        tx_portfolio = next((p for p in portfolios if p["id"] == tx_portfolio_id), None)
+
+        m = calculate_holding_metrics(txs, current_price, change_24h, change_24h_pct, as_of_date=today, portfolio=tx_portfolio)
         
         # Merge latest name & asset_type from cache if available
         if cached.get("name"):
@@ -375,7 +380,7 @@ def calculate_portfolio_summary(portfolios: List[Dict[str, Any]],
     return {
         "portfolio_id": selected_portfolio_id,
         "portfolio_name": active_portfolios[0]["name"] if (selected_portfolio_id and active_portfolios) else "All Portfolios",
-        "currency": active_portfolios[0]["currency"] if (selected_portfolio_id and active_portfolios) else "USD",
+        "currency": active_portfolios[0]["currency"] if (selected_portfolio_id and active_portfolios) else (active_portfolios[0]["currency"] if len(set(p["currency"] for p in active_portfolios)) == 1 else "INR"),
         "benchmark": active_portfolios[0]["benchmark"] if (selected_portfolio_id and active_portfolios) else "^GSPC",
         "total_current_value": round(total_current_value, 2),
         "total_cost_basis": round(total_cost_basis, 2),
