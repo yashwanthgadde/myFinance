@@ -356,12 +356,43 @@ def seed_demo_data():
 # ----------------- Frontend Static Files Mount ----------------- #
 
 frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
-if os.path.exists(frontend_dir):
-    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+
+@app.get("/static/{filename:path}")
+def serve_static(filename: str):
+    """Serve frontend static files with no-cache headers so browser always loads latest JS/CSS."""
+    file_path = os.path.join(frontend_dir, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    ext = os.path.splitext(filename)[1].lower()
+    media_types = {
+        ".js":   "application/javascript",
+        ".css":  "text/css",
+        ".html": "text/html",
+        ".png":  "image/png",
+        ".jpg":  "image/jpeg",
+        ".svg":  "image/svg+xml",
+        ".ico":  "image/x-icon",
+    }
+    media_type = media_types.get(ext, "application/octet-stream")
+    return FileResponse(
+        file_path,
+        media_type=media_type,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+    )
 
 @app.get("/")
 def serve_index():
     index_file = os.path.join(frontend_dir, "index.html")
     if os.path.exists(index_file):
-        return FileResponse(index_file)
+        return FileResponse(
+            index_file,
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+            }
+        )
     return {"message": "myFinance backend running. Frontend directory not found."}
