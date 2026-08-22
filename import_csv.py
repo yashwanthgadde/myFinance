@@ -41,9 +41,9 @@ def get_or_create_portfolio(conn, name: str) -> int:
     count = conn.execute("SELECT COUNT(*) FROM portfolios").fetchone()[0]
     color = PORTFOLIO_COLORS[count % len(PORTFOLIO_COLORS)]
 
-    # Detect currency from name hints
-    currency = "INR" if any(w in name.lower() for w in ["india", "nse", "bse", "inr"]) else "USD"
-    benchmark = "^NSEI" if currency == "INR" else "^GSPC"
+    # Default to INR / NIFTY 50 for all CSV-imported portfolios
+    currency  = "INR"
+    benchmark = "^NSEI"
 
     cur = conn.execute(
         """INSERT INTO portfolios (name, description, currency, benchmark, color, created_at)
@@ -51,7 +51,7 @@ def get_or_create_portfolio(conn, name: str) -> int:
         (name, f"Imported from {name}.csv", currency, benchmark, color, datetime.now().isoformat())
     )
     conn.commit()
-    print(f"  ✓ Created portfolio: '{name}' (ID={cur.lastrowid}, currency={currency})")
+    print(f"  ✓ Created portfolio: '{name}' (ID={cur.lastrowid}, currency={currency}, benchmark={benchmark})")
     return cur.lastrowid
 
 def already_exists(conn, portfolio_id: int, date: str, ticker: str,
