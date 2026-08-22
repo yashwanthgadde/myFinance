@@ -1,0 +1,16 @@
+Date,Ticker,Company,Type,Quantity,Price,Fees,Currency,Notes
+# ---------------------------------------------------------------------------
+# PORTFOLIO: Amma India Stocks
+# FORMAT GUIDE:
+#   Date     → YYYY-MM-DD  (e.g. 2024-01-15)
+#   Ticker   → NSE symbol with .NS suffix  (e.g. RELIANCE.NS, TCS.NS)
+#   Company  → Human-readable name (optional, for your reference)
+#   Type     → BUY | SELL | DIVIDEND
+#   Quantity → Number of shares (decimals allowed)
+#   Price    → Price per share in INR at time of trade
+#   Fees     → Brokerage + STT + other charges in INR (0 if none)
+#   Currency → INR (or USD for US stocks)
+#   Notes    → Order ID, broker name, remarks (optional)
+# ---------------------------------------------------------------------------
+# ADD YOUR TRANSACTIONS BELOW THIS LINE:
+# ---------------------------------------------------------------------------
