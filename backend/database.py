@@ -307,6 +307,19 @@ def get_settings() -> Dict[str, str]:
     return {r["key"]: r["value"] for r in rows}
 
 def get_setting(key: str, default: str = "") -> str:
+    # 1. Check local config.json file for hardcoded overrides
+    try:
+        import os, json
+        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")
+        if os.path.exists(config_path):
+            with open(config_path, "r") as f:
+                cfg = json.load(f)
+                if key in cfg and cfg[key]:
+                    return str(cfg[key])
+    except Exception:
+        pass
+
+    # 2. Check Database settings
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT value FROM settings WHERE key = ?;", (key,))
