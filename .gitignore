@@ -50,3 +50,6 @@ Thumbs.db
 uploads/
 temp/
 config.json
+portfolios/*.csv
+portfolios/.*
+data/*.db
