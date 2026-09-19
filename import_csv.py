@@ -41,9 +41,9 @@ def get_or_create_portfolio(conn, name: str) -> int:
     count = conn.execute("SELECT COUNT(*) FROM portfolios").fetchone()[0]
     color = PORTFOLIO_COLORS[count % len(PORTFOLIO_COLORS)]
 
-    # Default to INR / NIFTY 50 for all CSV-imported portfolios
-    currency  = "INR"
-    benchmark = "^NSEI"
+    # Default to INR, but use USD if filename suggests US stocks
+    currency  = "USD" if any(w in name.lower() for w in ["espp", "usd", "us"]) else "INR"
+    benchmark = "^GSPC" if currency == "USD" else "^NSEI"
 
     cur = conn.execute(
         """INSERT INTO portfolios (name, description, currency, benchmark, color, created_at)
@@ -101,7 +101,7 @@ def import_csv(filepath: str):
                     price = buy_price
 
                 fees     = 0.0
-                currency = "INR"
+                currency = (row.get("Currency") or "INR").strip().upper()
                 notes    = f"Imported from {filename}"
 
                 # Derive ticker from Stock Name if blank
