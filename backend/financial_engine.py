@@ -272,13 +272,8 @@ def calculate_portfolio_summary(portfolios: List[Dict[str, Any]],
             txs_by_ticker[tick] = []
         txs_by_ticker[tick].append(tx)
 
-    # Determine target base currency for summary
-    if selected_portfolio_id and active_portfolios:
-        target_currency = active_portfolios[0]["currency"]
-    else:
-        # Default to INR if mixed portfolios exist
-        currencies = set(p["currency"] for p in active_portfolios)
-        target_currency = active_portfolios[0]["currency"] if len(currencies) == 1 else "INR"
+    # Force target base currency for summary to always be INR
+    target_currency = "INR"
 
     fx_cache = {}
     def get_fx_rate(from_curr, to_curr):
@@ -420,7 +415,7 @@ def calculate_portfolio_summary(portfolios: List[Dict[str, Any]],
     return {
         "portfolio_id": selected_portfolio_id,
         "portfolio_name": active_portfolios[0]["name"] if (selected_portfolio_id and active_portfolios) else "All Portfolios",
-        "currency": active_portfolios[0]["currency"] if (selected_portfolio_id and active_portfolios) else (active_portfolios[0]["currency"] if len(set(p["currency"] for p in active_portfolios)) == 1 else "INR"),
+        "currency": "INR",
         "benchmark": active_portfolios[0]["benchmark"] if (selected_portfolio_id and active_portfolios) else "^GSPC",
         "total_current_value": round(total_current_value, 2),
         "total_cost_basis": round(total_cost_basis, 2),
