@@ -463,6 +463,10 @@ function buildPerfChart(d) {
         case '6mo': nDays = 180;      break;
         case '1y':  nDays = 365;      break;
         case '5y':  nDays = 365 * 5;  break;
+        case 'max': 
+            const startDate = new Date('2021-06-16');
+            nDays = Math.max(1, Math.floor((now - startDate) / (1000 * 60 * 60 * 24)));
+            break;
         default:    nDays = 365;
     }
 
