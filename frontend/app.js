@@ -806,7 +806,15 @@ async function processImage(file) {
         S.savedImage   = data.saved_image_path || '';
         S.reviewTrades = data.transactions || [];
 
-        if (data.requires_api_key) toast('Add a Gemini API key in Settings for real extraction', 'info');
+        if (data.requires_api_key) {
+            if (data.error_message && data.error_message.includes('503')) {
+                toast('Google AI is currently overloaded. Please try again in a few seconds.', 'err');
+            } else if (data.error_message && !data.error_message.includes('not configured')) {
+                toast(data.error_message.substring(0, 80), 'err');
+            } else {
+                toast('Add a Gemini API key in Settings for real extraction', 'info');
+            }
+        }
         else toast(`Extracted ${S.reviewTrades.length} trade(s)`, 'ok');
 
         renderReviewTable();

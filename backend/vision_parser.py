@@ -54,6 +54,7 @@ def extract_transactions_from_image(image_bytes: bytes, mime_type: str = "image/
             return _parse_with_gemini(image_bytes, mime_type, gemini_key)
         except Exception as e:
             gemini_error = str(e)
+            print("GEMINI ERROR IN PROD:", gemini_error)
     else:
         gemini_error = "Gemini API key not configured in Settings."
 
