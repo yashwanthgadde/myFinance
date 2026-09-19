@@ -761,6 +761,10 @@ function wireScreenshotEvents() {
         const img = Array.from(e.clipboardData?.items || []).find(i => i.type.startsWith('image/'));
         if (img) { openScreenshotModal(); processImage(img.getAsFile()); }
     });
+
+    document.getElementById('btn-new-port-screenshot')?.addEventListener('click', () => {
+        openPortfolioModal();
+    });
 }
 
 function openScreenshotModal() {
