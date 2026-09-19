@@ -29,6 +29,15 @@ function fmt(v, d=2) {
     if (v === null || v === undefined || isNaN(v)) return '0.' + '0'.repeat(d);
     return Number(v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
+function fmtCompact(v) {
+    if (v === null || v === undefined || isNaN(v)) return '0.00';
+    const num = Math.abs(Number(v));
+    const sign = v < 0 ? '-' : '';
+    if (num >= 10000000) return sign + (num / 10000000).toFixed(2) + 'Cr';
+    if (num >= 100000)   return sign + (num / 100000).toFixed(2) + 'L';
+    if (num >= 1000)     return sign + (num / 1000).toFixed(2) + 'K';
+    return sign + num.toFixed(2);
+}
 function esc(s) {
     if (!s) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -212,7 +221,7 @@ function updateTabValues() {
     const allEl = document.getElementById('tv-all');
     if (allEl && S.summary && S.activePortId === null) {
         const cs = sym(S.summary.currency);
-        allEl.textContent = cs + fmt(S.summary.total_current_value);
+        allEl.textContent = cs + fmtCompact(S.summary.total_current_value);
     }
     // Individual tabs get updated on-switch only for performance
 }
@@ -250,7 +259,7 @@ function renderHero(d) {
     if (blEl) blEl.textContent = d.benchmark || '^GSPC';
 
     // Main value
-    document.getElementById('hero-value').textContent = cs + fmt(d.total_current_value);
+    document.getElementById('hero-value').textContent = cs + fmtCompact(d.total_current_value);
 
     // Daily pill
     const dailyEl  = document.getElementById('hero-daily');
@@ -258,12 +267,12 @@ function renderHero(d) {
     const isPos = d.daily_pnl >= 0;
     const sign  = isPos ? '+' : '';
     dailyEl.className = `hero-daily ${isPos ? 'pos' : 'neg'}`;
-    dailyTxt.textContent = `${sign}${cs}${fmt(Math.abs(d.daily_pnl))} (${sign}${fmt(d.daily_pnl_pct)}%)`;
+    dailyTxt.textContent = `${sign}${cs}${fmtCompact(Math.abs(d.daily_pnl))} (${sign}${fmt(d.daily_pnl_pct)}%)`;
 
     // Total return KPI
     const retEl  = document.getElementById('kpi-return');
     const retPos = d.total_return >= 0;
-    retEl.textContent = (retPos ? '+' : '') + cs + fmt(Math.abs(d.total_return));
+    retEl.textContent = (retPos ? '+' : '') + cs + fmtCompact(Math.abs(d.total_return));
     retEl.className = `kpi-value ${retPos ? 'pos' : 'neg'}`;
     document.getElementById('kpi-return-sub').textContent = (retPos?'+':'') + fmt(d.total_return_pct) + '% all-time';
 
