@@ -272,6 +272,38 @@ def calculate_portfolio_summary(portfolios: List[Dict[str, Any]],
             txs_by_ticker[tick] = []
         txs_by_ticker[tick].append(tx)
 
+    # Determine target base currency for summary
+    if selected_portfolio_id and active_portfolios:
+        target_currency = active_portfolios[0]["currency"]
+    else:
+        # Default to INR if mixed portfolios exist
+        currencies = set(p["currency"] for p in active_portfolios)
+        target_currency = active_portfolios[0]["currency"] if len(currencies) == 1 else "INR"
+
+    fx_cache = {}
+    def get_fx_rate(from_curr, to_curr):
+        if from_curr == to_curr:
+            return 1.0
+        pair = f"{from_curr}{to_curr}=X"
+        if pair in fx_cache: return fx_cache[pair]
+        
+        # Check price_cache first
+        if pair in price_cache and price_cache[pair].get("price"):
+            fx_cache[pair] = price_cache[pair]["price"]
+            return fx_cache[pair]
+            
+        # Fetch live via yfinance
+        try:
+            import yfinance as yf
+            rate = yf.Ticker(pair).fast_info.last_price
+            fx_cache[pair] = float(rate)
+            return fx_cache[pair]
+        except Exception:
+            # Fallback approximate rates if offline
+            if from_curr == "USD" and to_curr == "INR": return 83.5
+            if from_curr == "INR" and to_curr == "USD": return 1 / 83.5
+            return 1.0
+
     holdings = []
     portfolio_cash_flows = []
     total_cost_basis = 0.0
@@ -306,12 +338,15 @@ def calculate_portfolio_summary(portfolios: List[Dict[str, Any]],
 
         holdings.append(m)
 
-        total_cost_basis += m["cost_basis"]
-        total_current_value += m["current_value"]
-        total_realized_pnl += m["realized_pnl"]
-        total_unrealized_pnl += m["unrealized_pnl"]
-        total_dividends += m["total_dividends"]
-        total_daily_pnl += m["daily_pnl"]
+        # Apply FX conversion to the portfolio totals
+        fx = get_fx_rate(m["currency"], target_currency)
+
+        total_cost_basis += m["cost_basis"] * fx
+        total_current_value += m["current_value"] * fx
+        total_realized_pnl += m["realized_pnl"] * fx
+        total_unrealized_pnl += m["unrealized_pnl"] * fx
+        total_dividends += m["total_dividends"] * fx
+        total_daily_pnl += m["daily_pnl"] * fx
 
         if m["first_buy_date"]:
             fb_date = parse_date(m["first_buy_date"])
@@ -320,8 +355,9 @@ def calculate_portfolio_summary(portfolios: List[Dict[str, Any]],
 
     # Calculate portfolio weights
     for h in holdings:
+        h_fx = get_fx_rate(h["currency"], target_currency)
         if total_current_value > 0 and h["current_value"] > 0:
-            h["weight_pct"] = round((h["current_value"] / total_current_value) * 100.0, 2)
+            h["weight_pct"] = round(((h["current_value"] * h_fx) / total_current_value) * 100.0, 2)
         else:
             h["weight_pct"] = 0.0
 
@@ -340,13 +376,16 @@ def calculate_portfolio_summary(portfolios: List[Dict[str, Any]],
         t_price = float(tx.get("price", 0))
         t_fees = float(tx.get("fees", 0))
 
+        t_currency = tx.get("currency", "INR")
+        fx = get_fx_rate(t_currency, target_currency)
+
         if t_type == "BUY":
-            portfolio_cash_flows.append((t_date, -(t_qty * t_price + t_fees)))
+            portfolio_cash_flows.append((t_date, -(t_qty * t_price + t_fees) * fx))
         elif t_type == "SELL":
-            portfolio_cash_flows.append((t_date, (t_qty * t_price - t_fees)))
+            portfolio_cash_flows.append((t_date, (t_qty * t_price - t_fees) * fx))
         elif t_type == "DIVIDEND":
-            div = (t_qty * t_price) if t_qty > 0 else t_price
-            portfolio_cash_flows.append((t_date, div - t_fees))
+            div = float(tx.get("total_amount") or (t_qty * t_price))
+            portfolio_cash_flows.append((t_date, (div - t_fees) * fx))
 
     # Add terminal current value cash flow
     if total_current_value > 1e-6:
@@ -369,7 +408,8 @@ def calculate_portfolio_summary(portfolios: List[Dict[str, Any]],
     allocation_by_type: Dict[str, float] = {}
     for h in active_holdings:
         atype = h["asset_type"].capitalize()
-        allocation_by_type[atype] = allocation_by_type.get(atype, 0.0) + h["current_value"]
+        h_fx = get_fx_rate(h["currency"], target_currency)
+        allocation_by_type[atype] = allocation_by_type.get(atype, 0.0) + (h["current_value"] * h_fx)
 
     allocation_list = []
     for atype, val in allocation_by_type.items():
